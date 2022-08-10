@@ -49,19 +49,20 @@ We provide prebuilt binaries on the chain [GitHub repo](https://github.com/KYVEN
 Please refer to the [Readme](https://github.com/KYVENetwork/chain) for instructions on how to build them.
 
 ```bash
+cd $HOME && mkdir binaries && cd binaries
 wget https://github.com/KYVENetwork/chain/releases/download/v0.0.1/chain_linux_amd64.tar.gz
 tar -xvzf chain_linux_amd64.tar.gz
-
+mv chaind kyved
+chmod +x kyved && sudo mv kyved /usr/bin/
+ 
 # The [moniker] is a human-readable name for your node
-./chaind init [moniker] --chain-id korellia
+kyved init [moniker] --chain-id korellia
 ```
 
-Obtain the genesis
+Obtain the genesis and set configs
 
 ```bash
-wget https://github.com/KYVENetwork/chain/releases/download/v0.0.1/genesis.json
-# move to the chain-node directory
-mv genesis.json ~/.kyve/config/genesis.json
+wget -O ~/.kyve/config/genesis.json https://github.com/KYVENetwork/chain/releases/download/v0.0.1/genesis.json
 ```
 
 It is important to start with the oldest version `v0.0.1` (the genesis version).
@@ -69,7 +70,7 @@ It is important to start with the oldest version `v0.0.1` (the genesis version).
 Start the chain the first time:
 
 ```bash
-./chaind start --p2p.seeds=02dd2c26948ea758a25d3dbc91744f8897681652@3.73.27.185:26656
+kyved start --p2p.seeds=02dd2c26948ea758a25d3dbc91744f8897681652@3.73.27.185:26656
 ```
 
 The node should now be starting to sync the chain. If it doesn't, you can always look
@@ -158,7 +159,7 @@ Node-runners then have to check out the specific tag and build the binary on the
 After that the binary needs to be copied to the Cosmovisor directory.
 
 ```bash
-mv chaind ~/.kyve/cosmovisor/upgrades/$UPGRADE_NAME/bin/chaind
+mv kyved ~/.kyve/cosmovisor/upgrades/$UPGRADE_NAME/bin/kyved
 ```
 
 The `$UPGRADE_NAME` will be the name of the tag of the commit. And is also specified in the governance proposal.
@@ -171,7 +172,7 @@ Create a service file.
 $USER is the Linux user which runs the process. Replace it before you copy the command
 
 ```bash
-tee <<EOF > /dev/null /etc/systemd/system/kyved.service
+sudo tee <<EOF > /dev/null /etc/systemd/system/kyved.service
 [Unit]
 Description=KYVE Chain-Node daemon
 After=network-online.target
@@ -222,9 +223,9 @@ Make sure your node is fully synced and configured correctly.
 Create a key or import an existing one
 
 ```shell
-./chaind keys add [your-key-name]
+kyved keys add [your-key-name]
 # or
-./chaind keys add [your-key-name] --recover
+kyved keys add [your-key-name] --recover
 # It then asks for the mnemonic
 ```
 
@@ -234,7 +235,7 @@ Become a validator by submitting the `create-validator` transaction to the netwo
 You need to substitute `[amount]`, `[moniker]` and `[your-key-name]`
 
 ```
-./chaind tx staking create-validator --yes \
+kyved tx staking create-validator --yes \
  --amount [amount]tkyve \
  --moniker [moniker] \
  --commission-rate "0.10" \
@@ -249,17 +250,37 @@ You need to substitute `[amount]`, `[moniker]` and `[your-key-name]`
 Learn your _valoper_ address
 
 ```
-./chaind keys show [your-key-name] -a --bech val
+kyved keys show [your-key-name] -a --bech val
 ```
 
 Delegate additional stake
 
 ```
-./chaind tx staking delegate [VALOPER_ADDRESS] [STAKE_AMOUNT]tkyve --from [your-key-name] --chain-id korellia
+kyved tx staking delegate [VALOPER_ADDRESS] [STAKE_AMOUNT]tkyve --from [your-key-name] --chain-id korellia
 ```
 
 Unjail
 
 ```
-./chaind tx slashing unjail --chain-id korellia --from [your-key-name]
+kyved tx slashing unjail --chain-id korellia --from [your-key-name]
+```
+
+## Disk Optimization
+
+Pruning
+
+```bash
+PRUNING="custom"
+PRUNING_KEEP_RECENT="100"
+PRUNING_INTERVAL="10"
+
+sed -i -e "s/^pruning *=.*/pruning = \"$PRUNING\"/" $HOME/.kyve/config/app.toml
+sed -i -e "s/^pruning-keep-recent *=.*/pruning-keep-recent = \
+\"$PRUNING_KEEP_RECENT\"/" $HOME/.kyve/config/app.toml
+```
+
+Disable indexer
+
+```bash
+sed -i.bak -e "s/indexer *=.*/indexer = \"null\"/g" $HOME/.kyve/config/config.toml
 ```
